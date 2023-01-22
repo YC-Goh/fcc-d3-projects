@@ -7,67 +7,129 @@ const newDivTemplate = (newId) => {
     return newElement;
 };
 
-const newH2Template = (newId, text) =>  {
-    let newElement = document.createElement('h2');
-    newElement.innerText = text;
-    newElement.id = newId;
-    return newElement;
-};
-
-const newButtonTemplate = (newId, text) => {
-    let newElement = document.createElement('button')
-    newElement.type = 'button';
-    newElement.innerText = text;
-    newElement.id = newId;
-    newElement.addEventListener('click', () => {document.getElementsByTagName('h2')[0].innerText = 'Clicked!'});
-    return newElement;
-};
-
+document.body.getElementsByTagName('h1')[0].remove();
 document.body.appendChild(newDivTemplate('main'));
-document.getElementById('main').setAttribute('style', 'display:flex; margin:0; padding:0');
-document.getElementById('main').appendChild(newH2Template('title', 'Compiled Successfully'));
-document.getElementById('title').setAttribute('style', 'margin:0; padding:0');
-document.getElementById('main').appendChild(newButtonTemplate('successButton', 'Click Me!'));
+document.getElementById('main').setAttribute('style', 'display: flex; flex-flow: column wrap; margin: 0; padding: 0');
 
-//  let dataSet = [5,3,4,6,7,5,3,2,5,4,3,6,4,3,1,5,4,3,5,4,3,1,5,4,2];
-//  d3.select('body').append('svg').attr('width', 500).attr('height', 300).attr('style', 'border:1px solid black').attr('id', 'canvas');
-//  d3.select('#canvas').selectAll('rect').data(dataSet).enter().append('rect').attr('width', 15).attr('height', (d,i) => 25 * d).attr('x', (d,i) => 20 * i).attr('y', (d,i) => 300 - (25 * d)).attr('fill', 'red')
-
-const barPlot = (parentSelector, canvasProps, dataSet) => {
-    const newDataSet = dataSet.slice().map(([date, val]) => ({date: new Date(date), gdp: val}));
-    const { id: ID, height: HEIGHT, width: WIDTH, padding: PADDINGY, style: STYLE, fill: FILL } = canvasProps;
-    const NUMBARS = newDataSet.length;
-    const BARWIDTH = Math.floor(WIDTH / NUMBARS);
-    const PADDINGX = Math.floor((WIDTH - (BARWIDTH * NUMBARS)) / 2);
-    const MINDATE = d3.min(newDataSet.map((d) => d.date));
-    const MAXDATE = d3.max(newDataSet.map((d) => d.date));
-    const scaleX = d3.scaleTime()
-        .domain([MINDATE, MAXDATE])
-        .range([PADDINGX, WIDTH - PADDINGX]);
-    const MINGDP = d3.min(newDataSet.map((d) => d.gdp));
-    const MAXGDP = d3.max(newDataSet.map((d) => d.gdp));
-    const scaleY = d3.scaleLinear()
-        .domain([MINGDP, MAXGDP])
-        .range([HEIGHT - PADDINGY, PADDINGY]);
-    const axisX = d3.axisBottom(scaleX).ticks(d3.timeYear.every(10)).tickFormat(d3.timeFormat('%Y'));
-    const axisY = d3.axisLeft(scaleY);
-    const canvas = d3.select(parentSelector).append('svg').attr('id', ID);
+const scatterPlot = (parentSelector, dataSet, canvasProps) => {
+    const newDataSet = dataSet.map(({year, time, charge}) => ({xvalue: new Date(year, 0), yvalue: new Date(1970,0,1,0,0,time), charge}));
+    const {
+        width: CANVASWIDTH, 
+        height: CANVASHEIGHT, 
+        style: CANVASSTYLE, 
+        plotWidth: PLOTWIDTH, 
+        plotHeight: PLOTHEIGHT, 
+        dotColor: DOTCOLOR,
+        title: PLOTTITLE, 
+        titleStyle: PLOTTITLESTYLE
+    } = canvasProps;
+    const MINYEAR = d3.min(newDataSet.map((d) => d.xvalue));
+    const MAXYEAR = d3.max(newDataSet.map((d) => d.xvalue));
+    const PADDINGX = (CANVASWIDTH - PLOTWIDTH) / 2;
+    const scaleX = d3.scaleTime().domain([MINYEAR, MAXYEAR]).range([PADDINGX, PLOTWIDTH + PADDINGX]);
+    const axisX = d3.axisBottom(scaleX);
+    const MINTIME = d3.min(newDataSet.map((d) => d.yvalue));
+    const MAXTIME = d3.max(newDataSet.map((d) => d.yvalue));
+    const PADDINGY = (CANVASHEIGHT - PLOTHEIGHT) / 2;
+    const scaleY = d3.scaleTime().domain([MINTIME, MAXTIME]).range([PLOTHEIGHT + PADDINGY, PADDINGY]);
+    const axisY = d3.axisLeft(scaleY).tickFormat(d3.timeFormat('%M:%S'));
+    const main = d3.select(parentSelector);
+    const title = main.append('h1');
+    title
+        .text(PLOTTITLE)
+        .attr('id', 'title')
+        .attr('style', PLOTTITLESTYLE);
+    const canvas = main.append('svg');
     canvas
-        .attr('width', WIDTH)
-        .attr('height', HEIGHT)
-        .attr('style', STYLE);
-    canvas.selectAll('rect').data(newDataSet).enter().append('rect')
-        .attr('width', BARWIDTH)
-        .attr('height', (d,i) => (HEIGHT - PADDINGY) - scaleY(d.gdp))
-        .attr('x', (d,i) => scaleX(d.date))
-        .attr('y', (d,i) => scaleY(d.gdp))
-        .attr('fill', FILL);
+        .attr('width', CANVASWIDTH)
+        .attr('height', CANVASHEIGHT)
+        .attr('style', CANVASSTYLE);
+    const dataPoints = canvas.selectAll('circle').data(newDataSet).enter().append('circle');
+    dataPoints
+        .attr('class', 'dot')
+        .attr('data-xvalue', (d) => d.xvalue)
+        .attr('cx', (d,i,n) => scaleX(new Date(n[i].getAttribute('data-xvalue'))))
+        .attr('data-yvalue', (d) => d.yvalue)
+        .attr('cy', (d,i,n) => scaleY(new Date(n[i].getAttribute('data-yvalue'))))
+        .attr('r', 5)
+        .attr('fill', (d) => DOTCOLOR(d));
     canvas.append('g')
         .call(axisX)
-        .attr('transform', `translate(0, ${HEIGHT - PADDINGY})`);
+        .attr('id', 'x-axis')
+        .attr('transform', `translate(0, ${PLOTHEIGHT + PADDINGY})`);
     canvas.append('g')
         .call(axisY)
+        .attr('id', 'y-axis')
         .attr('transform', `translate(${PADDINGX}, 0)`);
+    dataPoints
+        .on('mousemove', (e,d) => {
+            dataPoints.attr('fill', 'lightgray')
+            e.currentTarget.setAttribute('fill', 'red');
+            const TARGETX = e.currentTarget.getAttribute('cx');
+            const TARGETY = e.currentTarget.getAttribute('cy');
+            canvas.select('#tooltip').remove();
+            canvas.select('#tooltip-time').remove();
+            canvas.select('#tooltip-charge').remove();
+            canvas.append('text')
+                .attr('id', 'tooltip')
+                .attr('data-year', d.xvalue)
+                .attr('x', TARGETX)
+                .attr('y', TARGETY)
+                .attr('dx', 12)
+                .text(() => `YEAR: ${d3.timeFormat('%Y')(d.xvalue)}`);
+            canvas.append('text')
+                .attr('id', 'tooltip-time')
+                .attr('data-time', d.yvalue)
+                .attr('x', TARGETX)
+                .attr('y', TARGETY)
+                .attr('dx', 12)
+                .attr('dy', 16)
+                .text(() => `TIME: ${d3.timeFormat('%M:%S')(d.yvalue)}`);
+            canvas.append('text')
+                .attr('id', 'tooltip-charge')
+                .attr('data-charge', d.charge)
+                .attr('x', TARGETX)
+                .attr('y', TARGETY)
+                .attr('dx', 12)
+                .attr('dy', 32)
+                .text(() => `CHARGE: ${d.charge}`);
+        });
+    dataPoints
+        .on('mouseleave', (e,d) => {
+            dataPoints.attr('fill', (d) => DOTCOLOR(d));
+            canvas.select('#tooltip').remove();
+            canvas.select('#tooltip-time').remove();
+            canvas.select('#tooltip-charge').remove();
+        });
+    const LEGENDX = scaleX(MINYEAR);
+    const LEGENDY = scaleY(MINTIME) + 24;
+    const legend = canvas.append('g').attr('id', 'legend')
+    legend.append('rect')
+        .attr('x', LEGENDX)
+        .attr('y', LEGENDY)
+        .attr('width', 256)
+        .attr('height', 24)
+        .attr('fill', 'white')
+        .attr('stroke', 'black')
+        .attr('stroke-width', 1);
+    legend.append('circle')
+        .attr('cx', LEGENDX + 12)
+        .attr('cy', LEGENDY + 12)
+        .attr('r', 5)
+        .attr('fill', DOTCOLOR({charge: ''}));
+    legend.append('text')
+        .attr('x', LEGENDX + 24)
+        .attr('y', LEGENDY + 16)
+        .text('No Charge');
+    legend.append('circle')
+        .attr('cx', LEGENDX + 116)
+        .attr('cy', LEGENDY + 12)
+        .attr('r', 5)
+        .attr('fill', DOTCOLOR({charge: 'Charged'}));
+    legend.append('text')
+        .attr('x', LEGENDX + 128)
+        .attr('y', LEGENDY + 16)
+        .text('Has Drug Charge');
 };
 
 let responseObject;
@@ -79,8 +141,21 @@ request.open('GET', dataUrl, true);
 request.onload = () => {
     if (request.status == 200) {
         responseObject = JSON.parse(request.responseText);
-        dataSet = responseObject.data;
-        barPlot('body', {id: 'canvas', width: 960, height: 540, padding: 24, style: 'border:1px solid black', fill: 'black'}, dataSet);
+        dataSet = responseObject.map((d) => ({year: d.Year, time: d.Seconds, charge: d.Doping}));
+        scatterPlot(
+            '#main',
+            dataSet,
+            {
+                width: 1120,
+                height: 630,
+                plotWidth: 880,
+                plotHeight: 495,
+                dotColor: (data) => { if (data.charge === '') { return 'black' } else { return 'brown' }; },
+                style: 'border: 1px solid black; display: block; margin: 0 auto; padding: 0',
+                title: 'Year and Race Time of Doping Incidents in Competitive Cycling',
+                titleStyle: 'display: block; width: fit-content; margin: 0 auto; padding: 0'
+            }
+        );
     };
 };
 request.send();
