@@ -7,130 +7,72 @@ const newDivTemplate = (newId) => {
     return newElement;
 };
 
-document.body.getElementsByTagName('h1')[0].remove();
+//  document.body.getElementsByTagName('h1')[0].remove();
 document.body.appendChild(newDivTemplate('main'));
 document.getElementById('main').setAttribute('style', 'display: flex; flex-flow: column wrap; margin: 0; padding: 0');
 
-const heatPlot = (parentSelector, dataSet, canvasProps) => {
-    const newDataSet = dataSet.map(({year, month, temperature}) => ({year: new Date(year, 0), month: new Date(1970, month - 1), temperature: temperature}));
-    const {
-        width: CANVASWIDTH, 
-        height: CANVASHEIGHT, 
-        style: CANVASSTYLE,
-        plotWidth: PLOTWIDTH, 
-        plotHeight: PLOTHEIGHT,
-        title: PLOTTITLE,
-        titleStyle: PLOTTITLESTYLE,
-        description: PLOTDESCRIPTION,
-        descriptionStyle: PLOTDESCRIPTIONSTYLE
-    } = canvasProps;
-    const PADDINGX = (CANVASWIDTH - PLOTWIDTH) / 2;
-    const MINYEAR = d3.min(newDataSet.map((d) => d.year));
-    const MAXYEAR = d3.max(newDataSet.map((d) => d.year));
-    const CELLWIDTH = PLOTWIDTH / (MAXYEAR.getYear() - MINYEAR.getYear() + 1);
-    const scaleX = d3.scaleTime().domain([MINYEAR, MAXYEAR]).range([PADDINGX, PLOTWIDTH + PADDINGX]);
-    const axisX = d3.axisBottom(scaleX).tickFormat(d3.timeFormat('%Y'));
-    const PADDINGY = (CANVASHEIGHT - PLOTHEIGHT) / 2;
-    const MINMONTH = d3.min(newDataSet.map((d) => d.month));
-    const MAXMONTH = d3.max(newDataSet.map((d) => d.month));
-    const CELLHEIGHT = PLOTHEIGHT / (MAXMONTH.getMonth() - MINMONTH.getMonth() + 1);
-    const scaleY = d3.scaleTime().domain([MINMONTH, MAXMONTH]).range([PLOTHEIGHT + PADDINGY - 0.5 * CELLHEIGHT, PADDINGY + 0.5 * CELLHEIGHT]);
-    const axisY = d3.axisLeft(scaleY).tickFormat(d3.timeFormat('%B'));
-    const MINTEMP = d3.min(newDataSet.map((d) => d.temperature));
-    const MAXTEMP = d3.max(newDataSet.map((d) => d.temperature));
-    const scaleColour = d3.scaleLinear().domain([MINTEMP, MAXTEMP]).range(['blue', 'red'])
-    const main = d3.select(parentSelector);
-    const title = main.append('h1').text(PLOTTITLE).attr('style', PLOTTITLESTYLE).attr('id', 'title');
-    const canvas = main.append('svg').attr('width', CANVASWIDTH).attr('height', CANVASHEIGHT).attr('style', CANVASSTYLE);
-    canvas.append('g').call(axisX).attr('transform', `translate(0, ${PLOTHEIGHT + PADDINGY})`).attr('id', 'x-axis');
-    canvas.append('g').call(axisY).attr('transform', `translate(${PADDINGX}, 0)`).attr('id', 'y-axis');
-    const heatBoxes = canvas.selectAll('rect').data(newDataSet).enter().append('rect').attr('class', 'cell');
-    heatBoxes
-        .attr('data-year', (d) => d.year.getFullYear())
-        .attr('data-month', (d) => d.month.getMonth())
-        .attr('data-temp', (d) => d.temperature);
-    heatBoxes
-        .attr('width', CELLWIDTH)
-        .attr('height', CELLHEIGHT)
-        .attr('x', (d) => scaleX(d.year))
-        .attr('y', (d) => scaleY(d.month) - 0.5 * CELLHEIGHT)
-        .attr('fill', (d) => scaleColour(d.temperature));
-    heatBoxes
-        .on('mousemove', (e,d) => {
-            heatBoxes.attr('fill', 'lightgray');
-            e.currentTarget.setAttribute('fill', scaleColour(d.temperature));
-            const TARGETX = e.currentTarget.getAttribute('x');
-            const TARGETY = e.currentTarget.getAttribute('y');
-            canvas.select('#tooltip').remove();
-            const tooltip = canvas.append('text').attr('x', TARGETX).attr('y', TARGETY).attr('id', 'tooltip');
-            tooltip
-                .attr('data-year', d.year.getFullYear())
-                .attr('data-month', d.month.getMonth())
-                .attr('data-temp', d.temperature);
-            tooltip
-                .append('tspan')
-                .attr('dx', '2em')
-                .attr('dy', '1em')
-                .text(`DATE: ${d3.timeFormat('%B')(d.month)} ${d3.timeFormat('%Y')(d.year)}`);
-            tooltip
-                .append('tspan')
-                .attr('x', TARGETX)
-                .attr('dx', '2em')
-                .attr('dy', '1em')
-                .text(`TEMPERATURE: ${d3.format('.3f')(d.temperature)}`);
-        });
-    heatBoxes
-        .on('mouseleave', (e,d) => {
-            heatBoxes.attr('fill', (d,i,n) => scaleColour(d.temperature))
-            canvas.select('#tooltip').remove();
-        });
-    const description = main.append('p').text(PLOTDESCRIPTION).attr('style', PLOTDESCRIPTIONSTYLE).attr('id', 'description');
-    const legend = canvas.append('g').attr('id', 'legend');
-    legend
-        .attr('x', scaleX(MINYEAR))
-        .attr('y', 3)
-        .attr('width', PLOTWIDTH)
-        .attr('height', PADDINGY - 6);
-    const legendMarkers = legend.selectAll('rect').data([0,1,2,3,4].map((i) => MINTEMP + (MAXTEMP - MINTEMP) * (i / 4))).enter().append('rect').attr('class', 'legend-marker');
-    legendMarkers
-        .attr('width', PADDINGY - 24)
-        .attr('height', PADDINGY - 24)
-        .attr('x', (d,i) => scaleX(d3.interpolateDate(MINYEAR, MAXYEAR)(i/5)))
-        .attr('y', 12)
-        .attr('fill', (d) => scaleColour(d));
-    const legendTitles = legend.selectAll('text').data([0,1,2,3,4].map((i) => MINTEMP + (MAXTEMP - MINTEMP) * (i / 4))).enter().append('text').attr('id', 'legend-title');
-    legendTitles
-        .attr('x', (d,i) => scaleX(d3.interpolateDate(MINYEAR, MAXYEAR)(i/5+.05)))
-        .attr('y', PADDINGY - 18)
-        .text((d) => `${d3.format('.3f')(d)}`);
+const mapPlot = (parentSelector, dataSet, canvasProps) => {};
+
+const dataUrlEduc = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json';
+const dataUrlUsCounty = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json';
+
+/*
+    Notes to self:
+    Promise:
+        This thing is an object that actually takes only a single callback function.
+        The callback function itself should only take two arguments, namely a resolve and a reject function.
+        The resolve and reject functions are like specially defined return functions and are defined internally to the Promise.
+        To pass more parameters to the Promise, define a wrapper function that returns the Promise.
+        The wrapper function approach works because the callback function that the Promise takes as input is executed immediately.
+        The value that Promise returns is defined by whether resolve or reject is called first.
+        The Promise method then() then takes two callback functions to handle the resolve and reject returns respectively.
+    The callback function:
+        The idea is that instead of running an asynchronous function that takes parameters, a success callback, and a failure callback,
+        you first do stuff with the parameters that determines if it is a success or failure
+        then run the respective callbacks on the successful or failure outcomes.
+*/
+
+/*  async/await --- await turns asynchronous function calls within an async function to synchronous function calls
+
+const myfun = async (boo) => {
+    const myReturn1 = await (new Promise((res, rej) => { if (boo) { res(1) } else { rej(2) } })).then((i) => i).catch((e) => e);
+    const myReturn2 = await (new Promise((res, rej) => { if (myReturn1 === 1) { res('was true') } else { rej('was false') } })).then((i) => i).catch((e) => e);
+    console.log(myReturn2);
+    console.log(myReturn1);
 };
 
-let responseObject;
-let dataSet;
+myfun(false);
 
-const dataUrl = 'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json';
-const request = new XMLHttpRequest();
-request.open('GET', dataUrl, true);
-request.onload = () => {
-    if (request.status == 200) {
-        responseObject = JSON.parse(request.responseText);
-        dataSet = responseObject.monthlyVariance.map((d) => ({year: d.year, month: d.month, temperature: responseObject.baseTemperature + d.variance}));
-        heatPlot(
-            '#main',
-            dataSet,
-            {
-                width: 960,
-                height: 540,
-                plotWidth: 800,
-                plotHeight: 450,
-                style: 'border: 1px solid black; display: block; margin: 0 auto; padding: 0',
-                title: 'Mean Earth Temperature (Celsius) by Year and Month',
-                titleStyle: 'display: block; width: fit-content; margin: 0 auto; padding: 0',
-                description: 'Figure 1: Heat map of monthly mean surface temperature of the Earth from ~1750 to ~2010. Mouse over each cell to see its temperature (Celsius).',
-                descriptionStyle: 'display: block; width: fit-content; margin: 0 auto; padding: 0'
-            }
-        );
+*/
+
+const requestData = (params) => {
+    return new Promise((resolve, reject) => {
+        const { method, url, async } = params;
+        const request = new XMLHttpRequest();
+        request.open(method, url, async);
+        request.send();
+        request.onload = () => {
+            if (request.status === 200) {
+                resolve(JSON.parse(request.responseText))
+            } else {
+                reject('Failed to load');
+            };
+        };
+    });
+};
+
+/*  This is an overly complicated way to do this --- async/await is probably not needed, just chain promises instead
+
+const getData = async (paramsList) => {
+    let resultList = [];
+    for (let i in paramsList) {
+        let result = await requestData(paramsList[i]).then((data) => data).catch((error) => error);
+        resultList.push(result);
     };
+    return resultList;
 };
-request.send();
 
+const data = getData([{method: 'GET', url: dataUrlEduc, async: true}, {method: 'GET', url: dataUrlUsCounty, async: true}]);
+data.then((data) => console.log(data)).catch((error) => console.log(error));
+
+*/
