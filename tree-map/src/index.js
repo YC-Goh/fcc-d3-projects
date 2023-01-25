@@ -39,9 +39,9 @@ async function newRequest(params) {
         style: 'display: block; margin: 0 auto; padding: 0; border: 1px solid black', 
         plotWidth: 720, 
         plotHeight: 540, 
-        title: 'Treemap lmao', 
+        title: 'Treemap of the total box office revenue of movies in the USA', 
         titleStyle: 'display: block; width: fit-content; margin: 0 auto; padding: 0', 
-        description: 'Figure 1: Treemap lmao', 
+        description: 'Figure 1: Treemap of the total box office revenue of movies in the USA, grouped by genre and arranged by the total revenue amount. Mouse over each tile to see additional information about the movie.', 
         descriptionStyle: 'display: block; width: 1120px; text-align: center; margin: 0 auto; padding: 0'
     });
 };
@@ -101,12 +101,12 @@ const treePlot = (parentSelector, dataSet, canvasProps) => {
             tooltip.append('rect').attr('id', 'tooltip-box')
                 .attr('x', POINTERX + 16)
                 .attr('y', POINTERY - 28)
-                .attr('width', Math.max(`NAME: ${name}`.length,`CATEGORY: ${category}`.length) * 8 + 32)
+                .attr('width', Math.max(`NAME: ${name}`.length,`CATEGORY: ${category}`.length) * 6 + 80)
                 .attr('height', 64)
                 .attr('fill', 'white')
                 .attr('stroke', 'black')
                 .attr('stroke-width', 1)
-            tooltip.selectAll('text').data([`NAME: ${name}`,`CATEGORY: ${category}`,`VALUE: ${value}`]).enter().append('text').attr('class', 'tooltip-text')
+            tooltip.selectAll('text').data([`NAME: ${name}`,`CATEGORY: ${category}`,`VALUE: ${d3.format('$,.0f')(value)}`]).enter().append('text').attr('class', 'tooltip-text')
                 .attr('x', () => POINTERX + 24)
                 .attr('y', (d,i) => POINTERY - 8 + i * 16)
                 .text((d) => d);
